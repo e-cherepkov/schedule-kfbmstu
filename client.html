@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Schedule</title>
+</head>
+<body>
+  <div id="scheduleContent"><select style="width: 100%; border: none; box-shadow: 0px 2px 66px rgb(125 143 179 / 15%); padding: 16px; margin-top: 16px;" id="scheduleCourses" onchange="changeGroups()"></select><br /> <br /><select style="width: 100%; border: none; box-shadow: 0px 2px 66px rgb(125 143 179 / 15%); padding: 16px; margin-top: 16px;" id="scheduleGroups" onchange="changeTable()"></select><br />
+    <div class="table-responsive">
+     <table id="scheduleTable" class=" table"></table>
+    </div>
+   </div>
+   <script>
+    window.onload = function() {
+     loadCourses()
+    }
+   
+    function loadCourses() {
+     fetch('https://schedule.iuk4.ru/api/getcourses')
+     .then((response) => {
+      return response.json()
+     })
+     .then((data) => {
+      createSelectCourses(data)
+      return data
+     });
+    }
+   
+    function createSelectCourses(data) {
+     const selectListCourses = document.getElementById("scheduleCourses")
+   
+     for (let i in data) {
+      let option = document.createElement("option")
+      option.value = i
+      option.text = data[i]
+      selectListCourses.appendChild(option)
+     }
+   
+     const firstId = selectListCourses.value
+     loadGroups(firstId)
+    }
+   
+    function changeGroups() {
+     const selectList = document.getElementById("scheduleGroups")
+     const selectListCourses = document.getElementById("scheduleCourses")
+   
+     selectList.innerHTML = ''
+     loadGroups(selectListCourses.value)
+    }
+   
+    function loadGroups(course) {
+     fetch('https://schedule.iuk4.ru/api/getgroups/' + course)
+     .then((response) => {
+      return response.json()
+     })
+     .then((data) => {
+      createSelectGroups(data)
+      return data
+     });
+    }
+   
+    function createSelectGroups(data) {
+     const selectList = document.getElementById("scheduleGroups")
+   
+     for (let i in data) {
+      let option = document.createElement("option")
+      option.value = i
+      option.text = data[i]
+      selectList.appendChild(option)
+     }
+   
+     const firstCourseId = document.getElementById("scheduleCourses").value
+     const firstGroupId = selectList.value
+     loadRows(firstCourseId, firstGroupId)
+    }
+   
+    function loadRows(course, group) {
+     fetch('https://schedule.iuk4.ru/api/getschedule/' + course + '/' + group)
+     .then((response) => {
+      return response.json()
+     })
+     .then((data) => {
+      createTable(data)
+      return data
+     });
+    }
+   
+    function createTable(data) {
+     const table = document.getElementById('scheduleTable')
+     table.innerHTML = ''
+     let tbody = document.createElement('tbody');
+     table.appendChild(tbody);
+     for (let i in data) {
+      let rowspanDay = 0
+      let rowspanLes = 0
+      let row = document.createElement('tr')
+      let colDay = document.createElement('td')
+      let colLes = document.createElement('td')
+      let colDis = document.createElement('td')
+      for (let j = 0; j < data[i].length; j++) {  
+       if (isDay(data[i][j])) {
+        row = document.createElement('tr')
+        tbody.appendChild(row)
+        colDay = document.createElement('td')
+        colDay.innerHTML = data[i][j]
+        colDay.style = 'vertical-align: middle; font-weight: bold'
+        row.appendChild(colDay)
+        rowspanDay++
+       } else {
+        if (isLesson(data[i][j])) {
+         colLes.rowSpan = rowspanLes - 1
+         rowspanLes = 0
+         if (rowspanDay !== 1) {
+          row = document.createElement('tr')
+         }
+         tbody.appendChild(row)
+         colLes = document.createElement('td')
+         colLes.innerHTML = data[i][j]
+         colLes.style = 'vertical-align: middle'
+         row.appendChild(colLes)
+         rowspanLes++
+         if (j+1 < data[i].length) {
+          let k = j + 1
+          if (!isType(data[i][k])) {
+           tbody.appendChild(row)
+           colDis = document.createElement('td')
+           colDis.innerHTML = '<br/>'
+           row.appendChild(colDis)
+           rowspanDay++
+           rowspanLes++
+          }
+         } else {
+          tbody.appendChild(row)
+          colDis = document.createElement('td')
+          colDis.innerHTML = '<br/>'
+          row.appendChild(colDis)
+          rowspanDay++
+          rowspanLes++
+         }
+         if (j+1 === data[i].length) {
+          colLes.rowSpan = rowspanLes - 1
+          rowspanLes = 0
+         }
+        } else {
+         if (isType(data[i][j])) {
+          if (rowspanLes !== 1) {
+           row = document.createElement('tr')
+          }
+          switch (data[i][j]) {
+           case 'Ч':
+            let k = j + 2
+            if (data[i][k] === 'З') {
+             tbody.appendChild(row)
+             colDis = document.createElement('td')
+             colDis.innerHTML = data[i][++j]
+             row.appendChild(colDis)
+             rowspanDay++
+             rowspanLes++
+            } else {
+             tbody.appendChild(row)
+             colDis = document.createElement('td')
+             colDis.innerHTML = data[i][++j]
+             row.appendChild(colDis)
+             rowspanDay++
+             rowspanLes++
+             row = document.createElement('tr')
+             tbody.appendChild(row)
+             colDis = document.createElement('td')
+             colDis.innerHTML = '<br/>'
+             row.appendChild(colDis)
+             rowspanDay++
+             rowspanLes++
+            }
+            if (j+1 === data[i].length) {
+             colLes.rowSpan = rowspanLes - 1
+             rowspanLes = 0
+            }
+            break
+            case 'З':
+            let n = j - 2
+            if (data[i][n] === 'Ч') {
+             tbody.appendChild(row)
+             colDis = document.createElement('td')
+             colDis.innerHTML = data[i][++j]
+             row.appendChild(colDis)
+             rowspanDay++
+             rowspanLes++
+            } else {
+             tbody.appendChild(row)
+             colDis = document.createElement('td')
+             colDis.innerHTML = '<br/>'
+             row.appendChild(colDis)
+             rowspanDay++
+             rowspanLes++
+             row = document.createElement('tr')
+             tbody.appendChild(row)
+             colDis = document.createElement('td')
+             colDis.innerHTML = data[i][++j]
+             row.appendChild(colDis)
+             rowspanDay++
+             rowspanLes++
+            }
+            if (j+1 === data[i].length) {
+             colLes.rowSpan = rowspanLes - 1
+             rowspanLes = 0
+            }
+            break
+            case 'П':
+            tbody.appendChild(row)
+            colDis = document.createElement('td')
+            colDis.innerHTML = data[i][++j]
+            row.appendChild(colDis)
+            rowspanDay++
+            rowspanLes++
+            break
+          }
+         }
+        }                
+       }
+      }
+      colDay.rowSpan = rowspanDay - 1
+      rowspanDay = 0
+     }
+    }
+   
+    function changeTable(object) {
+     const courseId = document.getElementById("scheduleCourses").value
+     const groupId = document.getElementById("scheduleGroups").value
+     loadRows(courseId, groupId)
+    }
+   
+    function isDay(value) {
+     return value.length === 2 ? true : false
+    }
+    function isLesson(value) {
+     return value.includes(":")
+    }
+    function isType(value) {
+     return value.length === 1 ? true : false
+    }
+   </script>
+</body>
+</html>
